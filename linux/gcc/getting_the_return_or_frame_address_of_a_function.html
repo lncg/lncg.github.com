@@ -2,7 +2,7 @@
 <html>
   <head>
       <meta charset="utf-8" />
-      <title>index</title>
+      <title>getting_the_return_or_frame_address_of_a_function</title>
       <style>.markdown-preview:not([data-use-github-style]) { padding: 2em; font-size: 1.2em; color: rgb(171, 178, 191); overflow: auto; background-color: rgb(40, 44, 52); }
 .markdown-preview:not([data-use-github-style]) > :first-child { margin-top: 0px; }
 .markdown-preview:not([data-use-github-style]) h1, .markdown-preview:not([data-use-github-style]) h2, .markdown-preview:not([data-use-github-style]) h3, .markdown-preview:not([data-use-github-style]) h4, .markdown-preview:not([data-use-github-style]) h5, .markdown-preview:not([data-use-github-style]) h6 { line-height: 1.2; margin-top: 1.5em; margin-bottom: 0.5em; color: rgb(255, 255, 255); }
@@ -458,21 +458,30 @@ pre.editor-colors .fold-marker:after,
 }
 </style>
   </head>
-  <body class='markdown-preview'><h1 id="log-something">Log Something</h1>
-<h2 id="linux">linux</h2>
-<ul>
-<li><a href="/linux/2015-10-31-modify_su_source_accept_command_password.html">修改su命令源码: 通过命令行参数输入密码</a></li>
-</ul>
-<h4 id="gcc">gcc</h4>
-<ul>
-<li><a href="/linux/gcc/getting_the_return_or_frame_address_of_a_function.html">获取函数返回地址或者函数调用栈帧</a></li>
-</ul>
-<h4 id="kernel">kernel</h4>
-<ul>
-<li><a href="/linux/kernel/get_backtrace_in_kernel.html">在内核中获取函数调用栈</a></li>
-</ul>
-<h2 id="-">逆向</h2>
-<ul>
-<li><a href="/sec/2015-11-01-unpack_aspack2.12.html">手动脱 ASPack 2.12 壳</a></li>
-</ul></body>
+  <body class='markdown-preview'><h1 id="-">[译]获取函数返回地址或者函数调用栈</h1>
+<p>翻译自: <a href="https://gcc.gnu.org/onlinedocs/gcc/Return-Address.html">Getting the Return or Frame Address of a Function</a></p>
+<p>以下几个函数可用于获取函数的调用者信息.</p>
+<h2 id="-void-__builtin_return_address-unsigned-int-level-">内置函数: <code>void * __builtin_return_address (unsigned int level)</code></h2>
+<p>这个函数返回当前函数或者调用它的一个函数(父函数, 爷爷函数等等...)的返回地址. 参数 <code>level</code> 是函数调用栈上对应的帧. 当其值 为 <code>0</code> 时返回当前函数的返回地址, 为 <code>1</code> 时返回调用当前函数的函数的返回地址, 后面的以此类推. 对于内联函数, 期望的行为是调用内联函数的函数的返回地址. 为了避免这种行为, 请在非内联函数中使用该函数.</p>
+<p>参数 <code>level</code> 必须是整数常量(译注: 不能使用循环变量).</p>
+<p>在一些机器上, 这个函数可能只能获取当前函数的返回地址, 无法获取父辈及其以上函数的返回地址; 对于这种情况, 或则已经到达函数调用栈的最顶层, 这个函数将返回 0 或者一个随机值.
+因此, 应该使用 <code>__builtin_frame_address</code> 函数确定是否达到栈顶端.</p>
+<p>另外, 该函数的返回值可能需要经过额外处理, 详情参阅 <code>__builtin_extract_return_addr</code>.</p>
+<p>调用该函数时使用非 0 参数可能会有无法预期的现象, 例如导致调用者程序崩溃.
+因此, 调用该函数被认为是不安全的, 只有在调试 <code>-Wframe-address</code> 选项时才是必须的(译注: 原文为 As a result, calls that are considered unsafe are diagnosed when the -Wframe-address option is in effect). 这种调用应该只存在调试环境中.</p>
+<h2 id="-void-__builtin_extract_return_addr-void-addr-">内置函数: <code>void * __builtin_extract_return_addr (void *addr)</code></h2>
+<p>函数 <code>__builtin_return_address()</code> 返回的地址可能是经过编码的, 需要使用该函数得到真正的地址. 例如, 在 32 位 S/390 平台上, 最高位被屏蔽; 或者在 SPARC 平台上, 有一个偏移应用于将要被执行的下一条执行.</p>
+<p>如果不需要修复, 该函数只是简单返回传递给它的参数.</p>
+<h2 id="-void-__builtin_frob_return_address-void-addr-">内置函数: <code>void * __builtin_frob_return_address (void *addr)</code></h2>
+<p>这个函数功能与上一个函数 <code>__builtin_extract_return_addr()</code> 相反.</p>
+<h2 id="-void-__builtin_frame_address-unsigned-int-level-">内置函数: <code>void * __builtin_frame_address (unsigned int level)</code></h2>
+<p>这个函数与 <code>__builtin_return_address()</code> 类似, 但是它返回的是函数栈帧的地址, 而不是函数的返回地址. 调用 <code>__builtin_frame_address</code> 时, 传递参数 0 表示获取当前函数栈帧地址, 传递参数 1 表示获取父函数的帧地址, 以此类推.</p>
+<p>函数帧存储着局部变量和寄存器值. 函数帧地址是函数第一个被压入栈的地址. 然而,
+这个确切的定义依赖处理器和函数调用约定. 如果处理器有一个专门用于寄存器的帧指针,
+函数也有对应的帧指针, 则 <code>__builtin_frame_address()</code> 返回寄存器的帧指针.</p>
+<p>在某些机器上, 该函数可能只能获取当前函数的帧指针, 而无法获取父函数及其以上函数的帧指针(与 <code>__builtin_return_address()</code> 类似);
+在这种情况下, 或者, 已经到达函数栈的顶端, 如果在函数栈的第一帧被正确初始化的情况下(译注: 正常情况下),
+该函数将返回 0.</p>
+<p>调用该函数时使用非 0 参数可能会有无法预期的现象, 例如导致调用者程序崩溃.
+因此, 调用该函数被认为是不安全的, 只有在调试 <code>-Wframe-address</code> 选项时才是必须的(译注: 原文为 As a result, calls that are considered unsafe are diagnosed when the -Wframe-address option is in effect). 这种调用应该只存在调试环境中.</p></body>
 </html>

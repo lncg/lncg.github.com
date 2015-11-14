@@ -2,7 +2,7 @@
 <html>
   <head>
       <meta charset="utf-8" />
-      <title>index</title>
+      <title>2015-07-26-setting_centos_kdump</title>
       <style>.markdown-preview:not([data-use-github-style]) { padding: 2em; font-size: 1.2em; color: rgb(171, 178, 191); overflow: auto; background-color: rgb(40, 44, 52); }
 .markdown-preview:not([data-use-github-style]) > :first-child { margin-top: 0px; }
 .markdown-preview:not([data-use-github-style]) h1, .markdown-preview:not([data-use-github-style]) h2, .markdown-preview:not([data-use-github-style]) h3, .markdown-preview:not([data-use-github-style]) h4, .markdown-preview:not([data-use-github-style]) h5, .markdown-preview:not([data-use-github-style]) h6 { line-height: 1.2; margin-top: 1.5em; margin-bottom: 0.5em; color: rgb(255, 255, 255); }
@@ -62,7 +62,7 @@
 .markdown-preview[data-use-github-style] blockquote { padding: 0px 15px; color: rgb(119, 119, 119); border-left-width: 4px; border-left-style: solid; border-left-color: rgb(221, 221, 221); }
 .markdown-preview[data-use-github-style] blockquote > :first-child { margin-top: 0px; }
 .markdown-preview[data-use-github-style] blockquote > :last-child { margin-bottom: 0px; }
-.markdown-preview[data-use-github-style] table { display: block; width: 100%; overflow: auto; word-break: keep-all; }
+.markdown-preview[data-use-github-style] table { display: block; width: 100%; overflow: auto; word-break: normal; }
 .markdown-preview[data-use-github-style] table th { font-weight: bold; }
 .markdown-preview[data-use-github-style] table th, .markdown-preview[data-use-github-style] table td { padding: 6px 13px; border: 1px solid rgb(221, 221, 221); }
 .markdown-preview[data-use-github-style] table tr { border-top-width: 1px; border-top-style: solid; border-top-color: rgb(204, 204, 204); background-color: rgb(255, 255, 255); }
@@ -84,7 +84,7 @@
 .markdown-preview[data-use-github-style] span.float-right { display: block; float: right; margin-left: 13px; overflow: hidden; }
 .markdown-preview[data-use-github-style] span.float-right > span { display: block; margin: 13px auto 0px; overflow: hidden; text-align: right; }
 .markdown-preview[data-use-github-style] code, .markdown-preview[data-use-github-style] tt { padding: 0.2em 0px; margin: 0px; font-size: 85%; border-radius: 3px; background-color: rgba(0, 0, 0, 0.0392157); }
-.markdown-preview[data-use-github-style] code::before, .markdown-preview[data-use-github-style] tt::before, .markdown-preview[data-use-github-style] code::after, .markdown-preview[data-use-github-style] tt::after { letter-spacing: -0.2em; content: " "; }
+.markdown-preview[data-use-github-style] code::before, .markdown-preview[data-use-github-style] tt::before, .markdown-preview[data-use-github-style] code::after, .markdown-preview[data-use-github-style] tt::after { letter-spacing: -0.2em; content: ' '; }
 .markdown-preview[data-use-github-style] code br, .markdown-preview[data-use-github-style] tt br { display: none; }
 .markdown-preview[data-use-github-style] del code { text-decoration: inherit; }
 .markdown-preview[data-use-github-style] pre > code { padding: 0px; margin: 0px; font-size: 100%; word-break: normal; white-space: pre; border: 0px; background: transparent; }
@@ -458,21 +458,100 @@ pre.editor-colors .fold-marker:after,
 }
 </style>
   </head>
-  <body class='markdown-preview'><h1 id="log-something">Log Something</h1>
-<h2 id="linux">linux</h2>
+  <body class='markdown-preview'><h1 id="-kdump-">[译文]如何使用 kdump 获取崩溃的内核转储</h1>
+<p>本文翻译自 <a href="https://fedoraproject.org/wiki/How_to_use_kdump_to_debug_kernel_crashes">How to use kdump to debug kernel crashes</a>.</p>
+<p>以下内容为译文:</p>
+<h2 id="-kdump">内核和 kdump</h2>
+<p>kdump 是内核崩溃转储机制. 当内核崩溃时, kdump 使用 kexec 启动第二个内核,
+用这个新内核将刚刚崩溃的内核上下文转存下来, 所以 kdump 是一个非常可靠的解决方案.
+第二个内核通常叫做捕获内核(此处原文是 the crash kernel, 感觉不太准确, 下面一段又提到
+the capture kernel, 因此就叫做捕获内核了), 它可以用很小的内存启动,
+并转存内核映像.</p>
+<p>第一个内核保留一部分内存用于启动第二个内核. kexec 可以不通过 BIOS 启动捕获内核,
+因此第一个内核的内存, 也就是内核崩溃信息可以被保存下来了.</p>
+<h2 id="-kdump">如何使用 kdump</h2>
+<h3 id="-kdump">第一步: 配置 kdump</h3>
+<ol>
+<li><p>首先, 安装软件包 <code>kexec-tools</code>, <code>crash</code> 和 <code>kernel-debuginfo</code>. 可以使用如下命令安装这些软件包:</p>
+<pre class="editor-colors lang-shell"><div class="line"><span class="source shell"><span>yum&nbsp;install&nbsp;--enablerepo=fedora-debuginfo&nbsp;--enablerepo=updates-debuginfo&nbsp;kexec-tools&nbsp;crash&nbsp;kernel-debuginfo</span></span></div></pre>
+<blockquote>
+<p>注意: 只有当你需要分析内核转储文件(vmcore)时, 你才需要安装软件包 <code>crash</code> 和 <code>kernel-debuginfo</code>.
+在大多数的情况下, 在一台机器上配置 kdump 仅仅是为了得到内核转储文件, 然后会在其它机器上分析它,
+此时, 你就可以不安装这两个软件包.</p>
+<p>译者注: 通过如上命令将会安装最新版的内核调试信息软件包, 这可能与系统当前的内核版本不符.
+此时, 可以选择更新系统内核, 也可以到 <a href="http://debuginfo.centos.org/">http://debuginfo.centos.org/</a>下载指定版本的内核调试信息软件包.
+包括  <code>kernel-debuginfo-common</code>, <code>kernel-debuginfo</code>, 其他软件包, 如 <code>crash</code> 可以通过 yum 安装.</p>
+</blockquote>
+</li>
+<li><p>然后, 编辑 <code>/boot/grub/gru.conf</code> 或者 <code>/boot/grub2/grub.cfg</code>,
+在启动内核的命令行上添加参数 <code>crashkernel=128M</code>. 示例(对于 GRUB Legacy, 应当将 <code>linux</code> 修改为 <code>kernel</code>):</p>
+<pre class="editor-colors lang-shell"><div class="line"><span class="source shell"><span>linux&nbsp;/vmlinuz-3.1.4-1.fc16.x86_64&nbsp;ro&nbsp;root=/dev/VolGroup00/LogVol00&nbsp;rhgb&nbsp;LANG=en_US.UTF-8&nbsp;crashkernel=128M</span></span></div></pre>
+</li>
+<li><p>然后, 根据需要修改 kdump 的配置文件 <code>/etc/kdump.conf</code>.
+如果你不想将内核转储文件放在默认的 <code>/var/crash</code> 下的话,
+你可以修改配置文件将内核转储文件放在网络上或者本地硬盘的其它位置.
+可通过 <code>mkdumprd</code> 命令的帮助页和 <code>/etc/kdump.conf</code> 文件内的注释获取更多信息.</p>
+</li>
+<li><p>然后, 重启系统.</p>
+</li>
+<li><p>最后, 启动 kdump 服务.</p>
+<pre class="editor-colors lang-shell"><div class="line"><span class="source shell"><span>systemctl&nbsp;start&nbsp;kdump&nbsp;service</span></span></div></pre>
+<blockquote>
+<p>译者注: Centos 是从 Centos7 开始使用 systemd 的, 所以之前版本的 Centos
+需要使用命令 <code>service kdump start</code> 启动 kdump 服务, 添加将其设置为开机启动服务:
+<code>chkconfig kdump on</code>.</p>
+</blockquote>
+</li>
+</ol>
+<h4 id="-">注意:</h4>
+<ol>
+<li>上文提到的内核启动启动参数保留了 128MB 的物理内存. 这部分保留内存用于预加载和运行捕获内核.</li>
+<li>初始脚本会在系统启动的时候预加载捕获内核.</li>
+<li>在测试时推荐打开串行控制台或者将运行级别切换至 3(init 3).
+这是因为如果你运行在桌面环境或帧缓存模式时, kdump 不会重置你的控制台, 并且在终端上看不到系统崩溃的提示信息.
+在捕获内核捕获崩溃的内核时, 你也可能会看到屏幕显示的内容乱掉.</li>
+<li>转储一个崩溃文件时需要很长时间, 尤其是当系统有大量内存时. 此时你要有耐心, 等转储完成后,
+系统将会自动重启.</li>
+</ol>
+<h3 id="-">第二步: 捕获内核转储</h3>
+<p>在内核中调用 <code>panic()</code> 将会触发启动捕获内核. 出于测试目的, 我们可用下列的方法之一:</p>
+<ol>
+<li><p>通过 <code>/proc</code> 接口:</p>
+<pre class="editor-colors lang-shell"><div class="line"><span class="source shell"><span class="support function builtin shell"><span>echo</span></span><span>&nbsp;c&nbsp;</span><span class="keyword operator redirect shell"><span>&gt;</span></span><span>&nbsp;/proc/sysrq-trigger</span></span></div></pre>
+</li>
+<li><p>写个内核模块调用 <code>panic()</code>.</p>
+</li>
+</ol>
+<p>然后系统将会启动并进入捕获内核. 一个内核映像将会自动存储在 <code>/var/crash/&lt;dumpdir&gt;</code>,
+然后系统会重启进入正常内核. 存储内核映像的路径依赖于当前的日期和时间, 例如 <code>/var/crash/2006-02-17-17:02/vmcore</code>.</p>
+<h3 id="-">第三步: 分析内核转储</h3>
+<p>当系统从崩溃内核中恢复过来后, 你可以使用 <code>crash</code> 工具分析内核转储.</p>
+<ol>
+<li>首先, 查找最新的内核转储文件:<pre class="editor-colors lang-shell"><div class="line"><span class="source shell"><span>find&nbsp;/var/crash&nbsp;-type&nbsp;f&nbsp;-mtime&nbsp;-1</span></span></div></pre>
+</li>
+<li>选择一个内核转储文件, 使用 <code>crash</code> 工具:<pre class="editor-colors lang-shell"><div class="line"><span class="source shell"><span>crash&nbsp;/var/crash/2009-07-17-10</span><span class="constant character escape shell"><span>\:</span></span><span>36/vmcore&nbsp;/usr/lib/debug/lib/modules/</span><span class="string interpolated backtick shell"><span class="punctuation definition string begin shell"><span>`</span></span><span>uname&nbsp;-r</span><span class="punctuation definition string end shell"><span>`</span></span></span><span>/vmlinux</span></span></div></pre>
+</li>
+<li>执行 <code>bt</code> 命令, 获取内核崩溃信息(以下为示例, 非上述崩溃信息):<pre class="editor-colors lang-text"><div class="line"><span class="text plain"><span class="meta paragraph text"><span>crash&gt;&nbsp;bt</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>PID:&nbsp;16514&nbsp;&nbsp;TASK:&nbsp;ffff880039fb7500&nbsp;&nbsp;CPU:&nbsp;0&nbsp;&nbsp;&nbsp;COMMAND:&nbsp;&quot;insmod&quot;</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>#0&nbsp;[ffff88003b66fae0]&nbsp;machine_kexec&nbsp;at&nbsp;ffffffff81031fcb</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>#1&nbsp;[ffff88003b66fb40]&nbsp;crash_kexec&nbsp;at&nbsp;ffffffff810b8f72</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>#2&nbsp;[ffff88003b66fc10]&nbsp;oops_end&nbsp;at&nbsp;ffffffff814f0490</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>#3&nbsp;[ffff88003b66fc40]&nbsp;no_context&nbsp;at&nbsp;ffffffff8104230b</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>#4&nbsp;[ffff88003b66fc90]&nbsp;__bad_area_nosemaphore&nbsp;at&nbsp;ffffffff81042595</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>#5&nbsp;[ffff88003b66fce0]&nbsp;bad_area&nbsp;at&nbsp;ffffffff810426be</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>#6&nbsp;[ffff88003b66fd10]&nbsp;__do_page_fault&nbsp;at&nbsp;ffffffff81042dc3</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>#7&nbsp;[ffff88003b66fe30]&nbsp;do_page_fault&nbsp;at&nbsp;ffffffff814f246e</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>#8&nbsp;[ffff88003b66fe60]&nbsp;page_fault&nbsp;at&nbsp;ffffffff814ef825</span></span></span></div><div class="line"><span class="text plain"><span>&nbsp;</span><span class="meta paragraph text"><span>[exception&nbsp;RIP:&nbsp;init_module+73]</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>&nbsp;RIP:&nbsp;ffffffffa00160d9&nbsp;&nbsp;RSP:&nbsp;ffff88003b66ff18&nbsp;&nbsp;RFLAGS:&nbsp;00010246</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>&nbsp;RAX:&nbsp;0000000081068b70&nbsp;&nbsp;RBX:&nbsp;0000000000000000&nbsp;&nbsp;RCX:&nbsp;0000000000000000</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>&nbsp;RDX:&nbsp;0000000081068bf0&nbsp;&nbsp;RSI:&nbsp;00000000810677eb&nbsp;&nbsp;RDI:&nbsp;0000000000000246</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>&nbsp;RBP:&nbsp;ffff88003b66ff18&nbsp;&nbsp;&nbsp;R8:&nbsp;0000000000014db1&nbsp;&nbsp;&nbsp;R9:&nbsp;2b2b2b2b2b2b2b2b</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>&nbsp;R10:&nbsp;2b2b2b2b092d2d2d&nbsp;&nbsp;R11:&nbsp;0a2b2b2b2b2b2b2b&nbsp;&nbsp;R12:&nbsp;ffffffffa0016090</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>&nbsp;R13:&nbsp;000000000098f010&nbsp;&nbsp;R14:&nbsp;00007f51ef879010&nbsp;&nbsp;R15:&nbsp;0000000000000003</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>&nbsp;ORIG_RAX:&nbsp;ffffffffffffffff&nbsp;&nbsp;CS:&nbsp;0010&nbsp;&nbsp;SS:&nbsp;0000</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>#9&nbsp;[ffff88003b66ff20]&nbsp;do_one_initcall&nbsp;at&nbsp;ffffffff8100204c</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>#10&nbsp;[ffff88003b66ff50]&nbsp;sys_init_module&nbsp;at&nbsp;ffffffff810af641</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>#11&nbsp;[ffff88003b66ff80]&nbsp;system_call_fastpath&nbsp;at&nbsp;ffffffff8100b0f2</span></span></span></div><div class="line"><span class="text plain"><span>&nbsp;</span><span class="meta paragraph text"><span>RIP:&nbsp;000000391bee8f6a&nbsp;&nbsp;RSP:&nbsp;00007fff7547d158&nbsp;&nbsp;RFLAGS:&nbsp;00010246</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>&nbsp;RAX:&nbsp;00000000000000af&nbsp;&nbsp;RBX:&nbsp;ffffffff8100b0f2&nbsp;&nbsp;RCX:&nbsp;0000000000000000</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>&nbsp;RDX:&nbsp;000000000098f010&nbsp;&nbsp;RSI:&nbsp;0000000000030a35&nbsp;&nbsp;RDI:&nbsp;00007f51ef879010</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>&nbsp;RBP:&nbsp;000000000098f010&nbsp;&nbsp;&nbsp;R8:&nbsp;000000000001c000&nbsp;&nbsp;&nbsp;R9:&nbsp;000000000000066c</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>&nbsp;R10:&nbsp;000000391bedb460&nbsp;&nbsp;R11:&nbsp;0000000000000202&nbsp;&nbsp;R12:&nbsp;0000000000040000</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>&nbsp;R13:&nbsp;0000000000030a35&nbsp;&nbsp;R14:&nbsp;00007fff7547e829&nbsp;&nbsp;R15:&nbsp;0000000000030a35</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>&nbsp;ORIG_RAX:&nbsp;00000000000000af&nbsp;&nbsp;CS:&nbsp;0033&nbsp;&nbsp;SS:&nbsp;002b</span></span></span></div></pre></li>
+<li>反汇编引起崩溃的函数, 查看指定偏移位置的汇编代码:<pre class="editor-colors lang-text"><div class="line"><span class="text plain"><span class="meta paragraph text"><span>dis&nbsp;function_name</span></span></span></div></pre><blockquote>
+<p><strong>Missing debuginfo?</strong>
+<code>/usr/lib/debug</code> 下没有任何文件? 请确保你已经安装了软件包 <code>kernel-debuginfo</code>.</p>
+</blockquote>
+</li>
+</ol>
+<p>可从 <strong>更多文档</strong> 处寻找如何使用 <code>crash</code> 工具的更多信息.</p>
+<h2 id="-">更多文档</h2>
 <ul>
-<li><a href="/linux/2015-10-31-modify_su_source_accept_command_password.html">修改su命令源码: 通过命令行参数输入密码</a></li>
+<li>Kernel Source (Documentation/kdump/kdump.txt).</li>
+<li><a href="http://lse.sourceforge.net/kdump/">http://lse.sourceforge.net/kdump/</a></li>
+<li>Using crash - <a href="http://people.redhat.com/anderson">http://people.redhat.com/anderson</a></li>
 </ul>
-<h4 id="gcc">gcc</h4>
+<h2 id="-">其他</h2>
+<p>建议大家在配置 kdump 时, 打开 dump 的图形配置工具, 取消 <code>Filtering settings</code>
+里面的 <code>Filtering level</code> 中所有选项, 这样在捕获崩溃的内核时将不会过滤任何信息了,
+这样做虽然会导致捕获的文件变大, 但对于新手来说, 信息多点总是有好处的.</p>
+<h2 id="-">参考链接:</h2>
 <ul>
-<li><a href="/linux/gcc/getting_the_return_or_frame_address_of_a_function.html">获取函数返回地址或者函数调用栈帧</a></li>
-</ul>
-<h4 id="kernel">kernel</h4>
-<ul>
-<li><a href="/linux/kernel/get_backtrace_in_kernel.html">在内核中获取函数调用栈</a></li>
-</ul>
-<h2 id="-">逆向</h2>
-<ul>
-<li><a href="/sec/2015-11-01-unpack_aspack2.12.html">手动脱 ASPack 2.12 壳</a></li>
+<li><a href="http://opensourceforu.efytimes.com/2011/01/understanding-a-kernel-oops/">Understanding a Kernel Oops!</a></li>
+<li><a href="http://www.ibm.com/developerworks/cn/linux/l-cn-kdump1/">深入探索 Kdump，第 1 部分：带你走进 Kdump 的世界</a></li>
 </ul></body>
 </html>
