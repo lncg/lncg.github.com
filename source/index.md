@@ -5,6 +5,8 @@
 
 #### gcc
 - [获取函数返回地址或者函数调用栈帧](/linux/gcc/getting_the_return_or_frame_address_of_a_function.html)
+- [Centos 无法静态编译链接程序](/linux/gcc/gcc-static-error.html)
+
 
 #### kernel
 - [在内核中获取函数调用栈](/linux/kernel/get_backtrace_in_kernel.html)
