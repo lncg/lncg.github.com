@@ -38,7 +38,7 @@ PasswordAuthentication no // 禁用密码登录, 已经启用证书登录了, �
 然后重启 SSH 服务, 尝试登录以下吧~
 
 
-## 服务端和客户端都是是 **linux**
+## 服务端和客户端都是 **linux**
 那就省事了, 也不用使用 **PuTTYgen** 生成并转化公钥/私钥了,
 直接在客户端通过 `ssh-keygen` 命令生成公钥/私钥, 然后将公钥复制到服务端的 `~/.ssh/authorized_keys` 即可, 其他配置同上.
 
