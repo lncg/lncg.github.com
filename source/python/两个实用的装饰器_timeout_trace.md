@@ -94,3 +94,22 @@ def xxx():
 if '__main__' == __name__:
   xxx()
 ```
+
+输出示例:
+```
+python2 ./test/trace.py
+./test/trace.py(34):   print 1
+1
+./test/trace.py(36):   result = ''
+./test/trace.py(37):   for i in ['1', '2', '3']:
+./test/trace.py(38):     if i == '3':
+./test/trace.py(37):   for i in ['1', '2', '3']:
+./test/trace.py(38):     if i == '3':
+./test/trace.py(37):   for i in ['1', '2', '3']:
+./test/trace.py(38):     if i == '3':
+./test/trace.py(39):       result += i
+./test/trace.py(37):   for i in ['1', '2', '3']:
+./test/trace.py(41):   print result
+3
+
+```
