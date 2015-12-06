@@ -12,5 +12,8 @@
 - [在内核中获取函数调用栈](/linux/kernel/get_backtrace_in_kernel.html)
 
 
+## python
+- [[转]两个实用的 python 装饰器: timeout 和 trace](/python/python_two_decorate_timeout_and_trace.html)
+
 ## 逆向
 - [手动脱 ASPack 2.12 壳](/sec/2015-11-01-unpack_aspack2.12.html)
