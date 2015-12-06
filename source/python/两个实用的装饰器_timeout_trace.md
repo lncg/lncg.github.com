@@ -49,6 +49,8 @@ def timeout(seconds, error_message='Function call timed out'):
 
 ## trace 函数
 提供类似 `bash -x` 调试功能, 打印执行的每一行代码.
+
+`trace.py`:
 ```python
 import os
 import sys
@@ -111,5 +113,4 @@ python2 ./test/trace.py
 ./test/trace.py(37):   for i in ['1', '2', '3']:
 ./test/trace.py(41):   print result
 3
-
 ```
